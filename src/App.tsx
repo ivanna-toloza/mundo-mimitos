@@ -815,13 +815,13 @@ export default function App() {
           <div className="text-slate-400 text-[11px] md:text-xs font-bold leading-relaxed">
             <div>© {new Date().getFullYear()} {config?.storeName || "Mundo Mimitos"}.</div>
             <div className="text-[10px] text-slate-350 font-semibold mt-0.5">Catálogo de Ropa Infantil de Alta Calidad Peinada.</div>
-            <div className="text-[10px] text-slate-400 font-semibold mt-1">
+            <div className="text-xs text-slate-500 font-semibold mt-1.5">
               Diseñado por{" "}
               <a
                 href="https://igs-solucionesweb.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-pink-400 hover:text-pink-600 underline underline-offset-2 transition-colors"
+                className="text-pink-500 hover:text-pink-700 font-bold underline underline-offset-2 transition-colors"
               >
                 IGS Soluciones Web
               </a>
