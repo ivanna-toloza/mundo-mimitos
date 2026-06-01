@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { StoreConfig, Product, CartItem, AgeCategory, BRAND_COLORS, CATEGORIES, AGE_TAG_LABELS, STANDARD_SIZES } from "./types";
 import { ProductCard } from "./components/ProductCard";
 import { ProductModal } from "./components/ProductModal";
@@ -44,6 +44,13 @@ export default function App() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [notification, setNotification] = useState({ show: false, type: "", text: "" });
 
+  // Admin auth
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const logoClickCountRef = useRef(0);
+  const logoClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ADMIN_PASSWORD = "mimitos2025";
+
   const showNotification = (type: string, text: string) => {
     setNotification({ show: true, type, text });
     setTimeout(() => {
@@ -81,6 +88,10 @@ export default function App() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (sessionStorage.getItem("mm_admin") === "true") setAdminMode(true);
+  }, []);
 
   useEffect(() => {
     fetchStoreData();
@@ -276,6 +287,36 @@ export default function App() {
     }
   };
 
+  const handleLogoClick = () => {
+    logoClickCountRef.current += 1;
+    if (logoClickTimerRef.current) clearTimeout(logoClickTimerRef.current);
+    if (logoClickCountRef.current >= 5) {
+      logoClickCountRef.current = 0;
+      if (adminMode) {
+        setAdminMode(false);
+        sessionStorage.removeItem("mm_admin");
+      } else {
+        setShowPasswordModal(true);
+      }
+    } else {
+      logoClickTimerRef.current = setTimeout(() => { logoClickCountRef.current = 0; }, 2000);
+    }
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPassword === ADMIN_PASSWORD) {
+      setAdminMode(true);
+      sessionStorage.setItem("mm_admin", "true");
+      setShowPasswordModal(false);
+      setAdminPassword("");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      showNotification("error", "Contraseña incorrecta");
+      setAdminPassword("");
+    }
+  };
+
   // Cart Handlers
   const handleAddToCart = (product: Product, size: string) => {
     const cartItemId = `${product.id}_${size}`;
@@ -417,6 +458,7 @@ export default function App() {
               src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_1780272012332.png"}
               alt="Logo Mundo Mimitos"
               referrerPolicy="no-referrer"
+              onClick={handleLogoClick}
               className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 object-cover rounded-full border-4 border-pink-100 shadow-md cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95 bg-white p-0 shrink-0"
             />
             <div className="min-w-0">
@@ -445,30 +487,20 @@ export default function App() {
 
           {/* Controls Panel (Cart drawer and Administrar Switcher) */}
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
-            {/* Admin Switcher */}
-            <button
-              onClick={() => {
-                setAdminMode(!adminMode);
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-              className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2.5 rounded-2xl transition-all active:scale-95 border cursor-pointer ${
-                adminMode
-                  ? "bg-slate-900 border-slate-900 text-white shadow-md font-bold"
-                  : `bg-slate-55 border-slate-150 p-2.5 text-slate-605 text-slate-800 hover:bg-slate-100`
-              }`}
-            >
-              {adminMode ? (
-                <>
-                  <BookOpen className="w-4 h-4" />
-                  <span className="hidden sm:inline">Ver Catálogo</span>
-                </>
-              ) : (
-                <>
-                  <Settings className="w-4 h-4 text-slate-500 group-hover:rotate-45" />
-                  <span className="hidden sm:inline">Modo Editor</span>
-                </>
-              )}
-            </button>
+            {/* Admin Exit Button — only visible when logged in as admin */}
+            {adminMode && (
+              <button
+                onClick={() => {
+                  setAdminMode(false);
+                  sessionStorage.removeItem("mm_admin");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2.5 rounded-2xl transition-all active:scale-95 border cursor-pointer bg-slate-900 border-slate-900 text-white shadow-md"
+              >
+                <BookOpen className="w-4 h-4" />
+                <span className="hidden sm:inline">Ver Catálogo</span>
+              </button>
+            )}
 
             {/* Shopping Cart Trigger */}
             {!adminMode && (
@@ -1169,7 +1201,47 @@ export default function App() {
         </div>
       )}
 
-      {/* 5c. Toast Notification Alert */}
+      {/* 5c. Admin Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl border border-slate-100">
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="font-display font-black text-xl text-slate-800">Acceso Administrador</h3>
+              <p className="text-slate-400 text-xs mt-1.5">Ingresá tu contraseña para continuar</p>
+            </div>
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <input
+                type="password"
+                autoFocus
+                value={adminPassword}
+                onChange={e => setAdminPassword(e.target.value)}
+                placeholder="Contraseña"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-slate-400 transition-colors"
+              />
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowPasswordModal(false); setAdminPassword(""); }}
+                  className="flex-1 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl text-xs font-black bg-slate-900 hover:bg-slate-800 text-white transition-all cursor-pointer"
+                >
+                  Entrar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5d. Toast Notification Alert */}
       {notification.show && (
         <div className={`fixed bottom-6 right-6 p-4 rounded-2xl shadow-xl z-55 text-xs sm:text-sm font-semibold max-w-sm flex items-center gap-2 border animate-fade-in ${
           notification.type === "success"
