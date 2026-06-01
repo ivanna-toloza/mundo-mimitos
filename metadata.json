@@ -1,0 +1,6 @@
+{
+  "name": "Mundo Mimitos",
+  "description": "Una tienda interactiva de ropa para bebés y niños, con catálogo autogestionable, descripción por IA y pedidos rápidos por WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
