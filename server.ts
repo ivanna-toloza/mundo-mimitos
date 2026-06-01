@@ -1,12 +1,12 @@
 import express from "express";
 import path from "path";
-import fs from "fs/promises";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import { query } from "./src/database/db";
+import { initializeDatabase } from "./src/database/init";
+import type { StoreConfig, Product, StoreData } from "./src/database/types";
 
-const DATA_FILE_PATH = path.join(process.cwd(), "data", "store.json");
-
-// Default initial database in case file is deleted or lost
+// Default initial database in case database is empty
 const DEFAULT_DATA = {
   config: {
     storeName: "Mundo Mimitos",
@@ -122,23 +122,96 @@ const DEFAULT_DATA = {
   ]
 };
 
-// Help Helper to read JSON
-async function readStoreData() {
+// Helper to read store data from PostgreSQL
+async function readStoreData(): Promise<StoreData> {
   try {
-    const content = await fs.readFile(DATA_FILE_PATH, "utf-8");
-    return JSON.parse(content);
+    // Get config
+    const configResult = await query('SELECT key, value FROM store_config ORDER BY key');
+    const config: any = {};
+    for (const row of configResult.rows) {
+      config[row.key] = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
+    }
+
+    // Get products
+    const productsResult = await query('SELECT * FROM products ORDER BY id');
+    const products: Product[] = productsResult.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      ageTag: row.age_tag,
+      price: row.price,
+      sizes: row.sizes || [],
+      description: row.description,
+      image: row.image,
+      images: row.images || [],
+      inStock: row.in_stock,
+      isFeatured: row.is_featured
+    }));
+
+    return { config, products };
   } catch (error) {
-    // If not exists, write defaults and return
-    await fs.mkdir(path.dirname(DATA_FILE_PATH), { recursive: true }).catch(() => {});
-    await fs.writeFile(DATA_FILE_PATH, JSON.stringify(DEFAULT_DATA, null, 2), "utf-8");
-    return DEFAULT_DATA;
+    console.error('Error reading store data:', error);
+    throw error;
   }
 }
 
-// Help Helper to write JSON
-async function writeStoreData(data: typeof DEFAULT_DATA) {
-  await fs.mkdir(path.dirname(DATA_FILE_PATH), { recursive: true }).catch(() => {});
-  await fs.writeFile(DATA_FILE_PATH, JSON.stringify(data, null, 2), "utf-8");
+// Helper to update config in PostgreSQL
+async function updateStoreConfig(config: Partial<StoreConfig>) {
+  try {
+    for (const [key, value] of Object.entries(config)) {
+      await query(
+        'INSERT INTO store_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP',
+        [key, JSON.stringify(value)]
+      );
+    }
+  } catch (error) {
+    console.error('Error updating config:', error);
+    throw error;
+  }
+}
+
+// Helper to replace all products in PostgreSQL
+async function replaceProducts(products: Product[]) {
+  try {
+    // Delete all existing products
+    await query('DELETE FROM products');
+    
+    // Insert new products
+    for (const product of products) {
+      await query(
+        `INSERT INTO products (id, name, category, age_tag, price, sizes, description, image, images, in_stock, is_featured)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          product.id,
+          product.name,
+          product.category,
+          product.ageTag,
+          product.price,
+          product.sizes,
+          product.description,
+          product.image,
+          product.images,
+          product.inStock,
+          product.isFeatured
+        ]
+      );
+    }
+  } catch (error) {
+    console.error('Error replacing products:', error);
+    throw error;
+  }
+}
+
+// Helper to reset to default data
+async function resetStoreData() {
+  try {
+    await replaceProducts(DEFAULT_DATA.products);
+    await query('DELETE FROM store_config');
+    await updateStoreConfig(DEFAULT_DATA.config);
+  } catch (error) {
+    console.error('Error resetting store data:', error);
+    throw error;
+  }
 }
 
 let aiClient: GoogleGenAI | null = null;
@@ -162,7 +235,10 @@ function getGeminiClient(): GoogleGenAI {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
+
+  // Initialize database
+  await initializeDatabase();
 
   app.use(express.json({ limit: '10mb' }));
 
@@ -184,10 +260,9 @@ async function startServer() {
   // Update Store Config
   app.post("/api/store/config", async (req, res) => {
     try {
-      const currentData = await readStoreData();
-      currentData.config = { ...currentData.config, ...req.body };
-      await writeStoreData(currentData);
-      res.json({ success: true, config: currentData.config });
+      await updateStoreConfig(req.body);
+      const data = await readStoreData();
+      res.json({ success: true, config: data.config });
     } catch (e: any) {
       res.status(500).json({ error: "Error al actualizar la configuración: " + e.message });
     }
@@ -196,11 +271,9 @@ async function startServer() {
   // Update Products List (Replace all or add)
   app.post("/api/store/products", async (req, res) => {
     try {
-      const currentData = await readStoreData();
       if (Array.isArray(req.body)) {
-        currentData.products = req.body;
-        await writeStoreData(currentData);
-        res.json({ success: true, count: currentData.products.length });
+        await replaceProducts(req.body);
+        res.json({ success: true, count: req.body.length });
       } else {
         res.status(400).json({ error: "El cuerpo de la solicitud debe ser un arreglo de productos." });
       }
@@ -212,7 +285,7 @@ async function startServer() {
   // Reset to default store state
   app.post("/api/store/reset", async (req, res) => {
     try {
-      await writeStoreData(DEFAULT_DATA);
+      await resetStoreData();
       res.json({ success: true, data: DEFAULT_DATA });
     } catch (e: any) {
       res.status(500).json({ error: "Error al reiniciar la tienda: " + e.message });
