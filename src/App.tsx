@@ -402,19 +402,20 @@ export default function App() {
   const featuredProducts = products.filter(p => p.isFeatured && p.inStock);
 
   const renderColorfulName = (name: string) => {
+    // Colors taken directly from the Mundo Mimitos logo: pink, sage green, lavender, orange
     const textColors = [
-      "text-pink-400",     // Soft bubblegum/pastel pink
-      "text-sky-400",      // Gentle sky/celeste blue
-      "text-amber-400",    // Soft honey-yellow
-      "text-rose-400",     // Delicate blush rose
-      "text-teal-400",     // Sweet minty turquoise
-      "text-violet-400"    // Light lacy lavender
+      "text-[#E8658A]",
+      "text-[#8BAF6A]",
+      "text-[#C5A8D9]",
+      "text-[#F0A030]",
     ];
+    let colorIndex = 0;
     return name.split("").map((char, index) => {
       if (char === " ") {
         return <span key={index} className="inline-block">&nbsp;</span>;
       }
-      const colorClass = textColors[index % textColors.length];
+      const colorClass = textColors[colorIndex % textColors.length];
+      colorIndex++;
       return (
         <span key={index} className={`${colorClass} inline-block transition-transform hover:scale-110 duration-150`}>
           {char}
