@@ -1128,15 +1128,6 @@ export default function App() {
                       <label className="block text-[10px] uppercase tracking-wider font-bold text-slate-400">
                         Descripción de la Prenda
                       </label>
-                      <button
-                        type="button"
-                        onClick={handleGenerateAiDescription}
-                        disabled={aiLoading}
-                        className="text-[9px] bg-sky-50 text-sky-700 border border-sky-200 rounded-lg px-2 py-1 font-bold hover:bg-sky-100 cursor-pointer flex items-center gap-1 active:scale-95 disabled:opacity-50"
-                      >
-                        <Sparkles className="w-2.5 h-2.5" />
-                        {aiLoading ? "Pensando..." : "Generar con IA ✨"}
-                      </button>
                     </div>
                     <textarea
                       rows={5}
