@@ -2,9 +2,16 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import { config } from "dotenv";
 import { query } from "./src/database/db";
 import { initializeDatabase } from "./src/database/init";
 import type { StoreConfig, Product, StoreData } from "./src/database/types";
+
+// Load environment variables from .env.local
+config({ path: path.resolve(process.cwd(), '.env.local') });
+
+console.log('DATABASE_URL:', process.env.DATABASE_URL?.substring(0, 30) + '...');
+console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY?.substring(0, 10) + '...');
 
 // Default initial database in case database is empty
 const DEFAULT_DATA = {
