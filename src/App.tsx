@@ -455,7 +455,7 @@ export default function App() {
               </button>
             )}
             <img
-              src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_1780272012332.png"}
+              src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_nuevo.jpeg"}
               alt="Logo Mundo Mimitos"
               referrerPolicy="no-referrer"
               onClick={handleLogoClick}
@@ -599,7 +599,7 @@ export default function App() {
               <div className="relative shrink-0 z-10 flex flex-col items-center justify-center">
                 <div className="absolute inset-0 bg-pink-250/30 rounded-full blur-3xl transform scale-125" />
                 <img
-                  src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_1780272012332.png"}
+                  src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_nuevo.jpeg"}
                   alt="Logo Mundo Mimitos Grande"
                   referrerPolicy="no-referrer"
                   className="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 object-cover rounded-full border-[6px] border-white shadow-2xl transition-all duration-300 hover:scale-105 bg-white p-0 relative"
@@ -802,7 +802,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 md:px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
           <div className="flex flex-col md:flex-row items-center gap-4">
             <img
-              src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_1780272012332.png"}
+              src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_nuevo.jpeg"}
               alt="Logo Mundo Mimitos"
               referrerPolicy="no-referrer"
               className="w-20 h-20 object-cover rounded-full border border-pink-100 shadow-sm p-0 bg-white"

@@ -10,7 +10,7 @@ const DEFAULT_DATA = {
     bannerText: "✨ Envíos a todo el país | Ropa hipoalergénica de algodón 100% suave y amoroso ✨",
     bannerImage: "/src/assets/images/shop_hero_1780268503557.png",
     brandColor: "rose",
-    logoUrl: "/src/assets/images/mundo_mimitos_logo_1780272012332.png",
+    logoUrl: "/src/assets/images/mundo_mimitos_logo_nuevo.jpeg",
     currencySymbol: "$"
   },
   products: [
