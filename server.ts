@@ -129,7 +129,7 @@ async function readStoreData(): Promise<StoreData> {
     const configResult = await query('SELECT key, value FROM store_config ORDER BY key');
     const config: any = {};
     for (const row of configResult.rows) {
-      config[row.key] = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
+      config[row.key] = row.value;
     }
 
     // Get products
