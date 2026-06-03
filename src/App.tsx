@@ -763,7 +763,7 @@ export default function App() {
           </section>
 
           {/* 3c. Featured Section (Optional highlight) */}
-          {featuredProducts.length > 0 && activeAge === "all" && (activeCategory === "Todo el Catálogo" || activeCategory === "Todos") && (
+          {featuredProducts.length > 0 && activeAge === "all" && (activeCategory === "Todo el Catálogo" || activeCategory === "Todos") && !searchQuery.trim() && (
             <section className="bg-gradient-to-t from-slate-100/50 via-slate-50/30 to-transparent py-8 border-y border-slate-100/20">
               <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-6">
                 <div className="flex items-center justify-between">
