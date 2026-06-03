@@ -844,21 +844,6 @@ export default function App() {
                     onDelete={handleDeleteProductAction}
                   />
                 ))}
-
-                {/* Customer Benefits Badge card inside grid */}
-                <div className="bg-pink-50 rounded-[2.5rem] p-6 border-2 border-pink-200 text-xs flex flex-col justify-between shadow-xs">
-                  <div>
-                    <h5 className="font-display font-black text-pink-700 mb-2 flex items-center gap-1.5 text-xs">
-                      🔒 Compra Cómoda y Segura
-                    </h5>
-                    <p className="text-slate-650 leading-relaxed font-semibold mb-3">
-                      Elegí tus prendas preferidas de nuestro catálogo y hacé el pedido por WhatsApp. Acordás el talle, colores y método de envío directo con nosotros.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 font-black text-pink-800 uppercase tracking-wider text-[10px]">
-                    <span>✓ 100% Algodón Peinado</span>
-                  </div>
-                </div>
               </div>
 
               {filteredProducts.length === 0 && (
