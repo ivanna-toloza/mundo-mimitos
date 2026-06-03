@@ -5,7 +5,7 @@ import { ProductModal } from "./components/ProductModal";
 import { CartDrawer } from "./components/CartDrawer";
 import { AdminPanel } from "./components/AdminPanel";
 import { compressImageFile, dataUrlSizeKB } from "./utils/compressImage";
-import { ShoppingBag, Settings, Sparkles, BookOpen, Heart, Eye, ArrowRight, Shield, PhoneCall, AlertCircle, Trash2, Plus, X, Check, Image as ImageIcon, Save, Undo, Mail, MessageCircle, Upload, Camera } from "lucide-react";
+import { ShoppingBag, Settings, Sparkles, BookOpen, Heart, Eye, ArrowRight, Shield, AlertCircle, Trash2, Plus, X, Check, Image as ImageIcon, Save, Undo, Mail, MessageCircle, Upload, Camera } from "lucide-react";
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -890,15 +890,6 @@ export default function App() {
                 <MessageCircle className="w-4 h-4" />
               </span>
               WhatsApp: 383 425-3930
-            </a>
-            <a
-              href="tel:+543834253930"
-              className="group flex items-center gap-2.5 text-xs font-semibold text-slate-500 hover:text-sky-600 transition-colors"
-            >
-              <span className="w-8 h-8 rounded-full bg-sky-50 text-sky-500 flex items-center justify-center shrink-0 group-hover:bg-sky-100 transition-colors">
-                <PhoneCall className="w-4 h-4" />
-              </span>
-              Llamar: 383 425-3930
             </a>
           </div>
 
