@@ -794,22 +794,15 @@ export default function App() {
           {/* 3d. Cloth Type Categories & Grid List */}
           <section className="max-w-7xl mx-auto px-4 md:px-6">
             <div className="space-y-6">
-              {/* Tool bar showing current filter count */}
-              <div className="flex items-center justify-between bg-white px-5 py-4 rounded-2xl border-2 border-yellow-250 shadow-xs flex-wrap md:flex-nowrap gap-4">
-                <div className="text-xs md:text-sm text-slate-650 font-bold">
-                  Mostrando <span className="font-extrabold text-pink-500">{filteredProducts.length}</span> prendas en <span className="text-slate-800">{activeCategory}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                   {/* Mobile search bar if on small screen */}
-                   <input
-                    type="text"
-                    placeholder="🔍 Buscar..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="bg-slate-55 hover:bg-slate-100 border border-slate-205 focus:border-slate-300 focus:bg-white rounded-xl px-2.5 py-1 text-[11px] focus:outline-hidden md:hidden w-32"
-                  />
-                </div>
+              {/* Buscador (solo en celular; en escritorio está en el encabezado) */}
+              <div className="md:hidden">
+                <input
+                  type="text"
+                  placeholder="🔍 Buscar prendas..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full bg-white border border-slate-200 focus:border-slate-300 rounded-xl px-4 py-2.5 text-xs focus:outline-hidden shadow-xs"
+                />
               </div>
 
               {/* Full-width Products Grid list */}
