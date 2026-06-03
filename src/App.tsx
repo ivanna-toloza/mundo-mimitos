@@ -1060,13 +1060,6 @@ export default function App() {
                     />
                   </label>
                 </div>
-                <input
-                  type="text"
-                  placeholder="O pegá un enlace de imagen (opcional)"
-                  value={logoUrlState.startsWith("data:") ? "" : logoUrlState}
-                  onChange={e => setLogoUrlState(e.target.value)}
-                  className="mt-2 w-full bg-slate-50 focus:bg-white border border-slate-150 focus:border-slate-300 rounded-xl px-3.5 py-2 text-[11px] focus:outline-hidden font-bold text-slate-700"
-                />
               </div>
 
               <div>
@@ -1097,13 +1090,6 @@ export default function App() {
                     />
                   </label>
                 </div>
-                <input
-                  type="text"
-                  placeholder="O pegá un enlace de imagen (opcional)"
-                  value={bannerImageState.startsWith("data:") ? "" : bannerImageState}
-                  onChange={e => setBannerImageState(e.target.value)}
-                  className="mt-2 w-full bg-slate-50 focus:bg-white border border-slate-150 focus:border-slate-300 rounded-xl px-3.5 py-2 text-[11px] focus:outline-hidden font-bold text-slate-700"
-                />
               </div>
 
               <div>
@@ -1293,14 +1279,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Enlace opcional (alternativa a subir archivo) */}
-                    <input
-                      type="text"
-                      placeholder="O pegá un enlace de imagen (opcional)"
-                      value={productModalForm.image?.startsWith("data:") ? "" : (productModalForm.image || "")}
-                      onChange={e => setProductModalForm({ ...productModalForm, image: e.target.value })}
-                      className="mt-2 w-full bg-slate-50 focus:bg-white border border-slate-150 focus:border-slate-300 rounded-xl px-3.5 py-2 text-[11px] font-bold text-slate-750 focus:outline-hidden"
-                    />
                   </div>
 
                   {/* Galería de fotos adicionales */}
