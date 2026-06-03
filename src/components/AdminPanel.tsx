@@ -496,27 +496,27 @@ export function AdminPanel({
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          onClick={() => setEditingProduct({ ...editingProduct, image: "/src/assets/images/knit_romper_1780268520295.png" })}
+                          onClick={() => setEditingProduct({ ...editingProduct, image: "/src/assets/images/knit_romper_1780268520295.webp" })}
                           className="border border-slate-100 hover:border-slate-300 rounded-lg overflow-hidden w-11 h-11 relative"
                           title="Mameluco Tejido"
                         >
-                          <img src="/src/assets/images/knit_romper_1780268520295.png" alt="preset" className="w-full h-full object-cover" />
+                          <img src="/src/assets/images/knit_romper_1780268520295.webp" alt="preset" className="w-full h-full object-cover" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => setEditingProduct({ ...editingProduct, image: "/src/assets/images/linen_dress_1780268535594.png" })}
+                          onClick={() => setEditingProduct({ ...editingProduct, image: "/src/assets/images/linen_dress_1780268535594.webp" })}
                           className="border border-slate-100 hover:border-slate-300 rounded-lg overflow-hidden w-11 h-11 relative"
                           title="Vestido Lino"
                         >
-                          <img src="/src/assets/images/linen_dress_1780268535594.png" alt="preset" className="w-full h-full object-cover" />
+                          <img src="/src/assets/images/linen_dress_1780268535594.webp" alt="preset" className="w-full h-full object-cover" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => setEditingProduct({ ...editingProduct, image: "/src/assets/images/corduroy_overall_1780268551618.png" })}
+                          onClick={() => setEditingProduct({ ...editingProduct, image: "/src/assets/images/corduroy_overall_1780268551618.webp" })}
                           className="border border-slate-100 hover:border-slate-300 rounded-lg overflow-hidden w-11 h-11 relative"
                           title="Jardinero Mostaza"
                         >
-                          <img src="/src/assets/images/corduroy_overall_1780268551618.png" alt="preset" className="w-full h-full object-cover" />
+                          <img src="/src/assets/images/corduroy_overall_1780268551618.webp" alt="preset" className="w-full h-full object-cover" />
                         </button>
                         <button
                           type="button"

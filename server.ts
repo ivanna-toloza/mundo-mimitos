@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import { query } from "./src/database/db";
@@ -14,9 +15,9 @@ const DEFAULT_DATA = {
     whatsappNumber: "5491123456789",
     welcomeMessage: "¡Hola! Vi la tienda online y me gustaría consultar por los siguientes productos: 💛",
     bannerText: "✨ Envíos a todo el país | Ropa hipoalergénica de algodón 100% suave y amoroso ✨",
-    bannerImage: "/src/assets/images/shop_hero_1780268503557.png",
+    bannerImage: "/src/assets/images/shop_hero_1780268503557.webp",
     brandColor: "rose",
-    logoUrl: "/src/assets/images/mundo_mimitos_logo_nuevo.jpeg",
+    logoUrl: "/src/assets/images/mundo_mimitos_logo_nuevo.webp",
     currencySymbol: "$"
   },
   products: [
@@ -28,9 +29,9 @@ const DEFAULT_DATA = {
       "price": 18500,
       "sizes": ["RN", "3M", "6M", "12M"],
       "description": "Exquisito mameluco tejido en algodón súper peinado. Hipoalergénico, sutilmente abrigado y ultra suave para las pieles más tiernas de tus bebés. Cuenta con broches de madera natural.",
-      "image": "/src/assets/images/knit_romper_1780268520295.png",
+      "image": "/src/assets/images/knit_romper_1780268520295.webp",
       "images": [
-        "/src/assets/images/knit_romper_1780268520295.png",
+        "/src/assets/images/knit_romper_1780268520295.webp",
         "https://images.unsplash.com/photo-1519689680058-324335c77ebe?auto=format&fit=crop&q=80&w=800",
         "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=800"
       ],
@@ -45,9 +46,9 @@ const DEFAULT_DATA = {
       "price": 24000,
       "sizes": ["12M", "18M", "2A", "3A"],
       "description": "Elegante vestido de lino con mangas de volados y estampado botánico de flores silvestres en tonos rosados empolvados. Fresco, cómodo y diseñado para dar libertad de movimiento al andar.",
-      "image": "/src/assets/images/linen_dress_1780268535594.png",
+      "image": "/src/assets/images/linen_dress_1780268535594.webp",
       "images": [
-        "/src/assets/images/linen_dress_1780268535594.png",
+        "/src/assets/images/linen_dress_1780268535594.webp",
         "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?auto=format&fit=crop&q=80&w=800",
         "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?auto=format&fit=crop&q=80&w=800"
       ],
@@ -62,9 +63,9 @@ const DEFAULT_DATA = {
       "price": 28900,
       "sizes": ["2A", "3A", "4A", "6A"],
       "description": "Jardinero de corderoy de algodón súper suave de color mostaza otoñal. Tiradores regulables con hebillas metálicas clásicas. Ideal para combinar con básicos de manga larga y usar todo el año.",
-      "image": "/src/assets/images/corduroy_overall_1780268551618.png",
+      "image": "/src/assets/images/corduroy_overall_1780268551618.webp",
       "images": [
-        "/src/assets/images/corduroy_overall_1780268551618.png",
+        "/src/assets/images/corduroy_overall_1780268551618.webp",
         "https://images.unsplash.com/photo-1519457431-44ccd64a579b?auto=format&fit=crop&q=80&w=800",
         "https://images.unsplash.com/photo-1555252333-9f8e92e65df9?auto=format&fit=crop&q=80&w=800"
       ],
@@ -233,19 +234,84 @@ function getGeminiClient(): GoogleGenAI {
   return aiClient;
 }
 
+// --- AUTENTICACIÓN DE ADMINISTRADOR (lado servidor) ---
+// La contraseña vive en el servidor (variable de entorno ADMIN_PASSWORD).
+// Al iniciar sesión se entrega un token firmado con HMAC-SHA256 que el cliente
+// envía en cada operación de escritura. El secreto se deriva de la contraseña
+// si no se define ADMIN_SECRET, así funciona sin configuración extra.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "ema2026";
+const ADMIN_SECRET =
+  process.env.ADMIN_SECRET ||
+  crypto.createHash("sha256").update("mundo-mimitos::" + ADMIN_PASSWORD).digest("hex");
+const TOKEN_TTL_MS = 1000 * 60 * 60 * 12; // 12 horas
+
+function passwordMatches(input: unknown): boolean {
+  if (typeof input !== "string") return false;
+  const a = Buffer.from(input);
+  const b = Buffer.from(ADMIN_PASSWORD);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function createToken(): string {
+  const expiresAt = Date.now() + TOKEN_TTL_MS;
+  const payload = String(expiresAt);
+  const sig = crypto.createHmac("sha256", ADMIN_SECRET).update(payload).digest("hex");
+  return Buffer.from(`${payload}.${sig}`).toString("base64url");
+}
+
+function verifyToken(token: string | undefined): boolean {
+  if (!token) return false;
+  try {
+    const decoded = Buffer.from(token, "base64url").toString("utf8");
+    const [payload, sig] = decoded.split(".");
+    if (!payload || !sig) return false;
+    const expected = crypto.createHmac("sha256", ADMIN_SECRET).update(payload).digest("hex");
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+    const expiresAt = parseInt(payload, 10);
+    return Number.isFinite(expiresAt) && Date.now() < expiresAt;
+  } catch {
+    return false;
+  }
+}
+
+function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
+  if (!verifyToken(token)) {
+    return res.status(401).json({ error: "No autorizado. Iniciá sesión como administrador." });
+  }
+  next();
+}
+
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT || 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   // Initialize database
   await initializeDatabase();
 
-  app.use(express.json({ limit: '10mb' }));
+  app.use(express.json({ limit: '50mb' }));
 
   // Serve static assets directly so dynamic images load properly in production & dev
   app.use('/src/assets', express.static(path.join(process.cwd(), 'src/assets')));
 
   // --- API ROUTING ---
+
+  // Login de administrador: valida la contraseña y entrega un token firmado
+  app.post("/api/admin/login", (req, res) => {
+    const { password } = req.body || {};
+    if (!passwordMatches(password)) {
+      return res.status(401).json({ error: "Contraseña incorrecta" });
+    }
+    res.json({ success: true, token: createToken(), expiresIn: TOKEN_TTL_MS });
+  });
+
+  // Verifica que un token siga siendo válido (para restaurar la sesión)
+  app.get("/api/admin/verify", requireAdmin, (_req, res) => {
+    res.json({ success: true });
+  });
 
   // Get Store details (config + products)
   app.get("/api/store", async (req, res) => {
@@ -258,7 +324,7 @@ async function startServer() {
   });
 
   // Update Store Config
-  app.post("/api/store/config", async (req, res) => {
+  app.post("/api/store/config", requireAdmin, async (req, res) => {
     try {
       await updateStoreConfig(req.body);
       const data = await readStoreData();
@@ -269,7 +335,7 @@ async function startServer() {
   });
 
   // Update Products List (Replace all or add)
-  app.post("/api/store/products", async (req, res) => {
+  app.post("/api/store/products", requireAdmin, async (req, res) => {
     try {
       if (Array.isArray(req.body)) {
         await replaceProducts(req.body);
@@ -283,7 +349,7 @@ async function startServer() {
   });
 
   // Reset to default store state
-  app.post("/api/store/reset", async (req, res) => {
+  app.post("/api/store/reset", requireAdmin, async (req, res) => {
     try {
       await resetStoreData();
       res.json({ success: true, data: DEFAULT_DATA });
@@ -293,7 +359,7 @@ async function startServer() {
   });
 
   // AI Product Description Generator Route
-  app.post("/api/gemini/generate-description", async (req, res) => {
+  app.post("/api/gemini/generate-description", requireAdmin, async (req, res) => {
     const { name, category, ageTag, keywords } = req.body;
     if (!name || !category) {
       return res.status(400).json({ error: "El nombre y la categoría son obligatorios." });

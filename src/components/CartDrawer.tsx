@@ -102,6 +102,8 @@ export function CartDrawer({
                   src={item.product.image || "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&q=80&w=800"}
                   alt={item.product.name}
                   referrerPolicy="no-referrer"
+                  loading="lazy"
+                  decoding="async"
                   className="w-16 h-16 rounded-xl object-cover bg-slate-50 flex-none"
                 />
 

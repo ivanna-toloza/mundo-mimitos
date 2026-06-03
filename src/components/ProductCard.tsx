@@ -77,6 +77,8 @@ export function ProductCard({
           src={allImages[currentIdx]}
           alt={product.name}
           referrerPolicy="no-referrer"
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover transition-all duration-500 ease-in-out group-hover:scale-105"
         />
 

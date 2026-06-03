@@ -8,9 +8,9 @@ const DEFAULT_DATA = {
     whatsappNumber: "5491123456789",
     welcomeMessage: "¡Hola! Vi la tienda online y me gustaría consultar por los siguientes productos: 💛",
     bannerText: "✨ Envíos a todo el país | Ropa hipoalergénica de algodón 100% suave y amoroso ✨",
-    bannerImage: "/src/assets/images/shop_hero_1780268503557.png",
+    bannerImage: "/src/assets/images/shop_hero_1780268503557.webp",
     brandColor: "rose",
-    logoUrl: "/src/assets/images/mundo_mimitos_logo_nuevo.jpeg",
+    logoUrl: "/src/assets/images/mundo_mimitos_logo_nuevo.webp",
     currencySymbol: "$"
   },
   products: [
@@ -22,9 +22,9 @@ const DEFAULT_DATA = {
       "price": 18500,
       "sizes": ["RN", "3M", "6M", "12M"],
       "description": "Exquisito mameluco tejido en algodón súper peinado. Hipoalergénico, sutilmente abrigado y ultra suave para las pieles más tiernas de tus bebés. Cuenta con broches de madera natural.",
-      "image": "/src/assets/images/knit_romper_1780268520295.png",
+      "image": "/src/assets/images/knit_romper_1780268520295.webp",
       "images": [
-        "/src/assets/images/knit_romper_1780268520295.png",
+        "/src/assets/images/knit_romper_1780268520295.webp",
         "https://images.unsplash.com/photo-1519689680058-324335c77ebe?auto=format&fit=crop&q=80&w=800",
         "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=800"
       ],
@@ -39,9 +39,9 @@ const DEFAULT_DATA = {
       "price": 24000,
       "sizes": ["12M", "18M", "2A", "3A"],
       "description": "Elegante vestido de lino con mangas de volados y estampado botánico de flores silvestres en tonos rosados empolvados. Fresco, cómodo y diseñado para dar libertad de movimiento al andar.",
-      "image": "/src/assets/images/linen_dress_1780268535594.png",
+      "image": "/src/assets/images/linen_dress_1780268535594.webp",
       "images": [
-        "/src/assets/images/linen_dress_1780268535594.png",
+        "/src/assets/images/linen_dress_1780268535594.webp",
         "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?auto=format&fit=crop&q=80&w=800",
         "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?auto=format&fit=crop&q=80&w=800"
       ],
@@ -56,9 +56,9 @@ const DEFAULT_DATA = {
       "price": 28900,
       "sizes": ["2A", "3A", "4A", "6A"],
       "description": "Jardinero de corderoy de algodón súper suave de color mostaza otoñal. Tiradores regulables con hebillas metálicas clásicas. Ideal para combinar con básicos de manga larga y usar todo el año.",
-      "image": "/src/assets/images/corduroy_overall_1780268551618.png",
+      "image": "/src/assets/images/corduroy_overall_1780268551618.webp",
       "images": [
-        "/src/assets/images/corduroy_overall_1780268551618.png",
+        "/src/assets/images/corduroy_overall_1780268551618.webp",
         "https://images.unsplash.com/photo-1519457431-44ccd64a579b?auto=format&fit=crop&q=80&w=800",
         "https://images.unsplash.com/photo-1555252333-9f8e92e65df9?auto=format&fit=crop&q=80&w=800"
       ],
@@ -116,6 +116,49 @@ const DEFAULT_DATA = {
   ]
 };
 
+// Rewrites references to local sample images from .png/.jpeg to the new
+// optimized .webp versions. Only touches paths under /src/assets/images so
+// external URLs (Unsplash, etc.) are left untouched. Idempotent: safe to run
+// on every startup; it only writes rows that actually changed.
+function toWebpPath(url: any): any {
+  if (typeof url !== 'string') return url;
+  if (!url.startsWith('/src/assets/images/')) return url;
+  return url.replace(/\.(png|jpe?g)$/i, '.webp');
+}
+
+async function migrateLocalImagesToWebp() {
+  // Products: image (text) + images (text[])
+  const prods = await query('SELECT id, image, images FROM products');
+  for (const row of prods.rows) {
+    const newImage = toWebpPath(row.image);
+    const newImages = Array.isArray(row.images) ? row.images.map(toWebpPath) : row.images;
+    const changed =
+      newImage !== row.image ||
+      JSON.stringify(newImages) !== JSON.stringify(row.images);
+    if (changed) {
+      await query('UPDATE products SET image = $1, images = $2 WHERE id = $3', [
+        newImage,
+        newImages,
+        row.id,
+      ]);
+    }
+  }
+
+  // Config: logoUrl + bannerImage (stored as JSONB string scalars)
+  const cfg = await query(
+    "SELECT key, value FROM store_config WHERE key IN ('logoUrl', 'bannerImage')"
+  );
+  for (const row of cfg.rows) {
+    const next = toWebpPath(row.value);
+    if (next !== row.value) {
+      await query('UPDATE store_config SET value = $1 WHERE key = $2', [
+        JSON.stringify(next),
+        row.key,
+      ]);
+    }
+  }
+}
+
 export async function initializeDatabase() {
   console.log('Initializing database tables...');
   
@@ -150,7 +193,23 @@ export async function initializeDatabase() {
     `);
 
     console.log('✓ Database tables created');
-    
+
+    // Asegura que la columna image pueda guardar data URLs largos (fotos
+    // subidas y comprimidas desde el dispositivo). De VARCHAR(500) -> TEXT.
+    await query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'products'
+            AND column_name = 'image'
+            AND data_type = 'character varying'
+        ) THEN
+          ALTER TABLE products ALTER COLUMN image TYPE TEXT;
+        END IF;
+      END $$;
+    `);
+
     // Check if config exists
     const configResult = await query('SELECT COUNT(*) FROM store_config');
     const configCount = parseInt(configResult.rows[0].count, 10);
@@ -195,6 +254,10 @@ export async function initializeDatabase() {
       }
       console.log('✓ Default products inserted');
     }
+
+    // Self-heal old sample image references to the optimized .webp versions
+    await migrateLocalImagesToWebp();
+    console.log('✓ Image paths migrated to webp (where applicable)');
 
     console.log('✓ Database initialization complete');
   } catch (error) {

@@ -87,6 +87,7 @@ export function ProductModal({
               src={allImages[activeImgIdx]}
               alt={product.name}
               referrerPolicy="no-referrer"
+              decoding="async"
               className="w-full h-full object-cover transition-all duration-300"
             />
             {!product.inStock && (
@@ -109,7 +110,7 @@ export function ProductModal({
                     idx === activeImgIdx ? "border-pink-300 scale-105 shadow-xs" : "border-slate-100 hover:border-slate-200"
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img src={img} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>

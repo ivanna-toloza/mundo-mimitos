@@ -4,7 +4,8 @@ import { ProductCard } from "./components/ProductCard";
 import { ProductModal } from "./components/ProductModal";
 import { CartDrawer } from "./components/CartDrawer";
 import { AdminPanel } from "./components/AdminPanel";
-import { ShoppingBag, Settings, Sparkles, BookOpen, Heart, Eye, ArrowRight, Shield, PhoneCall, AlertCircle, Trash2, Plus, X, Check, Image as ImageIcon, Save, Undo } from "lucide-react";
+import { compressImageFile, dataUrlSizeKB } from "./utils/compressImage";
+import { ShoppingBag, Settings, Sparkles, BookOpen, Heart, Eye, ArrowRight, Shield, PhoneCall, AlertCircle, Trash2, Plus, X, Check, Image as ImageIcon, Save, Undo, Mail, MessageCircle, Upload, Camera } from "lucide-react";
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -42,6 +43,7 @@ export default function App() {
 
   const [aiLoading, setAiLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [notification, setNotification] = useState({ show: false, type: "", text: "" });
 
   // Admin auth
@@ -49,7 +51,19 @@ export default function App() {
   const [adminPassword, setAdminPassword] = useState("");
   const logoClickCountRef = useRef(0);
   const logoClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ADMIN_PASSWORD = "mimitos2025";
+
+  // Sesión de administrador: el token firmado se guarda en sessionStorage y se
+  // envía en cada operación de escritura. La contraseña se valida en el servidor.
+  const getToken = () => sessionStorage.getItem("mm_token") || "";
+  const authHeaders = (): Record<string, string> => ({
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${getToken()}`,
+  });
+  const handleAdminLogout = () => {
+    setAdminMode(false);
+    sessionStorage.removeItem("mm_admin");
+    sessionStorage.removeItem("mm_token");
+  };
 
   const showNotification = (type: string, text: string) => {
     setNotification({ show: true, type, text });
@@ -90,7 +104,15 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (sessionStorage.getItem("mm_admin") === "true") setAdminMode(true);
+    const token = sessionStorage.getItem("mm_token");
+    if (!token) return;
+    // Restaura la sesión sólo si el token sigue siendo válido en el servidor
+    fetch("/api/admin/verify", { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => {
+        if (res.ok) setAdminMode(true);
+        else handleAdminLogout();
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -111,9 +133,10 @@ export default function App() {
     setError("");
     const res = await fetch("/api/store/config", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify(newConfig)
     });
+    if (res.status === 401) { handleAdminLogout(); throw new Error("Tu sesión expiró. Iniciá sesión de nuevo."); }
     if (!res.ok) throw new Error("No se pudo guardar la configuración.");
     const data = await res.json();
     if (data.success) {
@@ -126,9 +149,10 @@ export default function App() {
     setError("");
     const res = await fetch("/api/store/products", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify(newProducts)
     });
+    if (res.status === 401) { handleAdminLogout(); throw new Error("Tu sesión expiró. Iniciá sesión de nuevo."); }
     if (!res.ok) throw new Error("No se pudieron guardar los productos.");
     const data = await res.json();
     if (data.success) {
@@ -140,8 +164,10 @@ export default function App() {
   const handleResetStore = async () => {
     setError("");
     const res = await fetch("/api/store/reset", {
-      method: "POST"
+      method: "POST",
+      headers: authHeaders()
     });
+    if (res.status === 401) { handleAdminLogout(); throw new Error("Tu sesión expiró. Iniciá sesión de nuevo."); }
     if (!res.ok) throw new Error("No se pudo reiniciar la base de datos.");
     const data = await res.json();
     if (data.success) {
@@ -204,6 +230,10 @@ export default function App() {
       showNotification("error", "Por favor, completa el nombre y un precio válido.");
       return;
     }
+    if (!productModalForm.image) {
+      showNotification("error", "Subí o pegá la foto principal de la prenda.");
+      return;
+    }
     setSaveLoading(true);
     try {
       let nextProducts: Product[];
@@ -222,6 +252,47 @@ export default function App() {
     }
   };
 
+  // Sube y comprime la foto principal desde el dispositivo/cámara
+  const handleUploadMainPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const dataUrl = await compressImageFile(file, { maxSize: 1000, quality: 0.8 });
+      setProductModalForm(prev => (prev ? { ...prev, image: dataUrl } : prev));
+      showNotification("success", `Foto lista (${dataUrlSizeKB(dataUrl)} KB) ✨`);
+    } catch (err: any) {
+      showNotification("error", err.message || "No se pudo procesar la foto.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Sube y comprime fotos adicionales para la galería del producto
+  const handleUploadGalleryPhotos = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploadingImage(true);
+    try {
+      const compressed: string[] = [];
+      for (const file of Array.from(files)) {
+        compressed.push(await compressImageFile(file, { maxSize: 1000, quality: 0.8 }));
+      }
+      setProductModalForm(prev =>
+        prev ? { ...prev, images: [...(prev.images || []), ...compressed] } : prev
+      );
+      showNotification("success", `${compressed.length} foto(s) agregada(s) a la galería ✨`);
+    } catch (err: any) {
+      showNotification("error", err.message || "No se pudieron procesar las fotos.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleRemoveGalleryImage = (idx: number) => {
+    setProductModalForm(prev =>
+      prev ? { ...prev, images: (prev.images || []).filter((_, i) => i !== idx) } : prev
+    );
+  };
+
   const handleGenerateAiDescription = async () => {
     if (!productModalForm || !productModalForm.name || !productModalForm.category) {
       showNotification("error", "Completa primero el nombre y categoría de la prenda.");
@@ -231,7 +302,7 @@ export default function App() {
     try {
       const response = await fetch("/api/gemini/generate-description", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({
           name: productModalForm.name,
           category: productModalForm.category,
@@ -293,8 +364,7 @@ export default function App() {
     if (logoClickCountRef.current >= 5) {
       logoClickCountRef.current = 0;
       if (adminMode) {
-        setAdminMode(false);
-        sessionStorage.removeItem("mm_admin");
+        handleAdminLogout();
       } else {
         setShowPasswordModal(true);
       }
@@ -303,16 +373,28 @@ export default function App() {
     }
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPassword === ADMIN_PASSWORD) {
-      setAdminMode(true);
-      sessionStorage.setItem("mm_admin", "true");
-      setShowPasswordModal(false);
-      setAdminPassword("");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } else {
-      showNotification("error", "Contraseña incorrecta");
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: adminPassword })
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.token) {
+        sessionStorage.setItem("mm_token", data.token);
+        sessionStorage.setItem("mm_admin", "true");
+        setAdminMode(true);
+        setShowPasswordModal(false);
+        setAdminPassword("");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        showNotification("error", data.error || "Contraseña incorrecta");
+        setAdminPassword("");
+      }
+    } catch (err) {
+      showNotification("error", "No se pudo conectar con el servidor.");
       setAdminPassword("");
     }
   };
@@ -456,9 +538,11 @@ export default function App() {
               </button>
             )}
             <img
-              src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_nuevo.jpeg"}
+              src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_nuevo.webp"}
               alt="Logo Mundo Mimitos"
               referrerPolicy="no-referrer"
+              decoding="async"
+              fetchPriority="high"
               onClick={handleLogoClick}
               className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 object-cover rounded-full border-4 border-pink-100 shadow-md cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95 bg-white p-0 shrink-0"
             />
@@ -492,8 +576,7 @@ export default function App() {
             {adminMode && (
               <button
                 onClick={() => {
-                  setAdminMode(false);
-                  sessionStorage.removeItem("mm_admin");
+                  handleAdminLogout();
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
                 className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2.5 rounded-2xl transition-all active:scale-95 border cursor-pointer bg-slate-900 border-slate-900 text-white shadow-md"
@@ -574,10 +657,12 @@ export default function App() {
             <div className={`relative min-h-[340px] md:min-h-[420px] rounded-[2.5rem] overflow-hidden bg-gradient-to-r from-yellow-250 via-orange-100 to-orange-200 border-4 border-dashed border-white/40 shadow-xs flex flex-col md:flex-row items-center justify-between p-6 md:p-12 gap-8 group transition-all duration-300 ${adminMode ? "border-pink-400/80 bg-pink-100/10" : ""}`}>
               {/* Banner backdrop image */}
               <img
-                src={config.bannerImage || "/src/assets/images/shop_hero_1780268503557.png"}
+                src={config.bannerImage || "/src/assets/images/shop_hero_1780268503557.webp"}
                 alt="kids apparel catalog"
                 className="absolute inset-0 w-full h-full object-cover opacity-50 mix-blend-overlay filter brightness-105"
                 referrerPolicy="no-referrer"
+                loading="lazy"
+                decoding="async"
               />
 
               {/* Ambient light glow container */}
@@ -600,9 +685,11 @@ export default function App() {
               <div className="relative shrink-0 z-10 flex flex-col items-center justify-center">
                 <div className="absolute inset-0 bg-pink-250/30 rounded-full blur-3xl transform scale-125" />
                 <img
-                  src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_nuevo.jpeg"}
+                  src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_nuevo.webp"}
                   alt="Logo Mundo Mimitos Grande"
                   referrerPolicy="no-referrer"
+                  decoding="async"
+                  fetchPriority="high"
                   className="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 object-cover rounded-full border-[6px] border-white shadow-2xl transition-all duration-300 hover:scale-105 bg-white p-0 relative"
                 />
                 <div className="absolute -bottom-3 bg-white text-pink-600 px-4 py-1 rounded-full text-[10px] md:text-xs font-black shadow-md border-2 border-pink-100 uppercase tracking-wider">
@@ -800,20 +887,61 @@ export default function App() {
 
       {/* 4. Footer */}
       <footer className="bg-white border-t border-slate-100 mt-auto py-10">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
-          <div className="flex flex-col md:flex-row items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-6 text-center md:text-left">
+          {/* Marca */}
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-4">
             <img
-              src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_nuevo.jpeg"}
+              src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_nuevo.webp"}
               alt="Logo Mundo Mimitos"
               referrerPolicy="no-referrer"
-              className="w-20 h-20 object-cover rounded-full border border-pink-100 shadow-sm p-0 bg-white"
+              loading="lazy"
+              decoding="async"
+              className="w-20 h-20 object-cover rounded-full border border-pink-100 shadow-sm p-0 bg-white shrink-0"
             />
             <div>
               <h4 className="font-display font-extrabold text-slate-800 text-base">{config?.storeName || "Mundo Mimitos"}</h4>
               <p className="text-xs text-slate-400 mt-1 max-w-sm font-semibold">{config?.storeTagline || "Ropa suave y amorosa para bebés y niños"}</p>
             </div>
           </div>
-          <div className="text-slate-400 text-[11px] md:text-xs font-bold leading-relaxed">
+
+          {/* Contacto */}
+          <div className="flex flex-col items-center md:items-start gap-3">
+            <h4 className="font-display font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
+              💌 Contacto
+            </h4>
+            <a
+              href="mailto:mundomimitosbaby.kids@gmail.com"
+              className="group flex items-center gap-2.5 text-xs font-semibold text-slate-500 hover:text-pink-600 transition-colors break-all"
+            >
+              <span className="w-8 h-8 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center shrink-0 group-hover:bg-pink-100 transition-colors">
+                <Mail className="w-4 h-4" />
+              </span>
+              mundomimitosbaby.kids@gmail.com
+            </a>
+            <a
+              href="https://wa.me/543834253930"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-2.5 text-xs font-semibold text-slate-500 hover:text-emerald-600 transition-colors"
+            >
+              <span className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
+                <MessageCircle className="w-4 h-4" />
+              </span>
+              WhatsApp: 383 425-3930
+            </a>
+            <a
+              href="tel:+543834253930"
+              className="group flex items-center gap-2.5 text-xs font-semibold text-slate-500 hover:text-sky-600 transition-colors"
+            >
+              <span className="w-8 h-8 rounded-full bg-sky-50 text-sky-500 flex items-center justify-center shrink-0 group-hover:bg-sky-100 transition-colors">
+                <PhoneCall className="w-4 h-4" />
+              </span>
+              Llamar: 383 425-3930
+            </a>
+          </div>
+
+          {/* Créditos */}
+          <div className="text-slate-400 text-[11px] md:text-xs font-bold leading-relaxed flex flex-col items-center md:items-end justify-center">
             <div>© {new Date().getFullYear()} {config?.storeName || "Mundo Mimitos"}.</div>
             <div className="text-[10px] text-slate-350 font-semibold mt-0.5">Catálogo de Ropa Infantil de Alta Calidad Peinada.</div>
             <div className="text-xs text-slate-500 font-semibold mt-1.5">
@@ -1110,15 +1238,89 @@ export default function App() {
 
                   <div>
                     <label className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">
-                      URL de la Foto Principal
+                      Foto Principal de la Prenda *
                     </label>
+
+                    <div className="flex items-start gap-3">
+                      {/* Vista previa */}
+                      <div className="w-20 h-20 rounded-xl border-2 border-slate-150 bg-slate-50 overflow-hidden shrink-0 flex items-center justify-center">
+                        {productModalForm.image ? (
+                          <img src={productModalForm.image} alt="Vista previa" className="w-full h-full object-cover" />
+                        ) : (
+                          <ImageIcon className="w-6 h-6 text-slate-300" />
+                        )}
+                      </div>
+
+                      <div className="flex-1 space-y-2">
+                        <label
+                          className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-[11px] font-black text-white transition-all active:scale-95 ${
+                            uploadingImage ? "bg-slate-400 cursor-wait" : "bg-pink-500 hover:bg-pink-600 cursor-pointer"
+                          }`}
+                        >
+                          <Camera className="w-4 h-4" />
+                          {uploadingImage ? "Procesando..." : productModalForm.image ? "Cambiar foto" : "Subir o tomar foto"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingImage}
+                            onChange={e => { handleUploadMainPhoto(e.target.files?.[0]); e.target.value = ""; }}
+                          />
+                        </label>
+                        <p className="text-[9px] text-slate-400 font-semibold leading-tight">
+                          Se comprime sola para que cargue rápido en el celular.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Enlace opcional (alternativa a subir archivo) */}
                     <input
-                      type="url"
-                      required
-                      value={productModalForm.image || ""}
+                      type="text"
+                      placeholder="O pegá un enlace de imagen (opcional)"
+                      value={productModalForm.image?.startsWith("data:") ? "" : (productModalForm.image || "")}
                       onChange={e => setProductModalForm({ ...productModalForm, image: e.target.value })}
-                      className="w-full bg-slate-50 focus:bg-white border border-slate-150 focus:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-750 focus:outline-hidden"
+                      className="mt-2 w-full bg-slate-50 focus:bg-white border border-slate-150 focus:border-slate-300 rounded-xl px-3.5 py-2 text-[11px] font-bold text-slate-750 focus:outline-hidden"
                     />
+                  </div>
+
+                  {/* Galería de fotos adicionales */}
+                  <div>
+                    <span className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1.5">
+                      Galería (fotos adicionales)
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {(productModalForm.images || []).map((img, idx) => (
+                        <div key={idx} className="relative w-14 h-14 rounded-lg overflow-hidden border border-slate-150">
+                          <img src={img} alt="" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveGalleryImage(idx)}
+                            className="absolute top-0.5 right-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full w-4 h-4 flex items-center justify-center transition-all"
+                            title="Quitar foto"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <label
+                        className={`w-14 h-14 rounded-lg border-2 border-dashed flex items-center justify-center transition-all ${
+                          uploadingImage
+                            ? "border-slate-200 text-slate-300 cursor-wait"
+                            : "border-emerald-300 text-emerald-500 hover:border-emerald-500 hover:bg-emerald-50 cursor-pointer"
+                        }`}
+                        title="Agregar fotos"
+                      >
+                        <Plus className="w-5 h-5" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          disabled={uploadingImage}
+                          onChange={e => { handleUploadGalleryPhotos(e.target.files); e.target.value = ""; }}
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
 
