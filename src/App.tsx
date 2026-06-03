@@ -293,6 +293,25 @@ export default function App() {
     );
   };
 
+  // Sube y comprime una imagen de configuración (logo o banner) desde el dispositivo
+  const handleUploadConfigImage = async (
+    file: File | undefined,
+    setter: (value: string) => void,
+    maxSize: number
+  ) => {
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const dataUrl = await compressImageFile(file, { maxSize, quality: 0.82 });
+      setter(dataUrl);
+      showNotification("success", `Imagen lista (${dataUrlSizeKB(dataUrl)} KB) ✨`);
+    } catch (err: any) {
+      showNotification("error", err.message || "No se pudo procesar la imagen.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleGenerateAiDescription = async () => {
     if (!productModalForm || !productModalForm.name || !productModalForm.category) {
       showNotification("error", "Completa primero el nombre y categoría de la prenda.");
@@ -1015,27 +1034,75 @@ export default function App() {
 
               <div>
                 <label className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">
-                  URL del Logo (*Imagen de la Marca)
+                  Logo de la Marca
                 </label>
+                <div className="flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-full border-2 border-pink-100 bg-white overflow-hidden shrink-0 flex items-center justify-center">
+                    {logoUrlState ? (
+                      <img src={logoUrlState} alt="Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-5 h-5 text-slate-300" />
+                    )}
+                  </div>
+                  <label
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-[11px] font-black text-white transition-all active:scale-95 ${
+                      uploadingImage ? "bg-slate-400 cursor-wait" : "bg-pink-500 hover:bg-pink-600 cursor-pointer"
+                    }`}
+                  >
+                    <Camera className="w-4 h-4" />
+                    {uploadingImage ? "Procesando..." : logoUrlState ? "Cambiar logo" : "Subir logo"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploadingImage}
+                      onChange={e => { handleUploadConfigImage(e.target.files?.[0], setLogoUrlState, 400); e.target.value = ""; }}
+                    />
+                  </label>
+                </div>
                 <input
-                  type="url"
-                  placeholder="https://ejemplo.com/logo.png"
-                  value={logoUrlState}
+                  type="text"
+                  placeholder="O pegá un enlace de imagen (opcional)"
+                  value={logoUrlState.startsWith("data:") ? "" : logoUrlState}
                   onChange={e => setLogoUrlState(e.target.value)}
-                  className="w-full bg-slate-50 focus:bg-white border border-slate-150 focus:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs focus:outline-hidden font-bold text-slate-700"
+                  className="mt-2 w-full bg-slate-50 focus:bg-white border border-slate-150 focus:border-slate-300 rounded-xl px-3.5 py-2 text-[11px] focus:outline-hidden font-bold text-slate-700"
                 />
               </div>
 
               <div>
                 <label className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">
-                  URL de Imagen de Fondo de Banner/Hero
+                  Imagen de Fondo (Banner Principal)
                 </label>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-14 rounded-lg border-2 border-slate-150 bg-slate-50 overflow-hidden shrink-0 flex items-center justify-center">
+                    {bannerImageState ? (
+                      <img src={bannerImageState} alt="Banner" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-5 h-5 text-slate-300" />
+                    )}
+                  </div>
+                  <label
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-[11px] font-black text-white transition-all active:scale-95 ${
+                      uploadingImage ? "bg-slate-400 cursor-wait" : "bg-pink-500 hover:bg-pink-600 cursor-pointer"
+                    }`}
+                  >
+                    <Camera className="w-4 h-4" />
+                    {uploadingImage ? "Procesando..." : bannerImageState ? "Cambiar imagen de fondo" : "Subir imagen de fondo"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploadingImage}
+                      onChange={e => { handleUploadConfigImage(e.target.files?.[0], setBannerImageState, 1400); e.target.value = ""; }}
+                    />
+                  </label>
+                </div>
                 <input
-                  type="url"
-                  placeholder="https://ejemplo.com/banner.png"
-                  value={bannerImageState}
+                  type="text"
+                  placeholder="O pegá un enlace de imagen (opcional)"
+                  value={bannerImageState.startsWith("data:") ? "" : bannerImageState}
                   onChange={e => setBannerImageState(e.target.value)}
-                  className="w-full bg-slate-50 focus:bg-white border border-slate-150 focus:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs focus:outline-hidden font-bold text-slate-700"
+                  className="mt-2 w-full bg-slate-50 focus:bg-white border border-slate-150 focus:border-slate-300 rounded-xl px-3.5 py-2 text-[11px] focus:outline-hidden font-bold text-slate-700"
                 />
               </div>
 
