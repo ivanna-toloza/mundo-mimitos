@@ -872,15 +872,7 @@ export default function App() {
 
       {/* 4. Footer */}
       <footer className="bg-white border-t border-slate-100 mt-auto py-10">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-6 text-center md:text-left">
-          {/* Marca */}
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-4">
-            <div>
-              <h4 className="font-display font-extrabold text-slate-800 text-base">{config?.storeName || "Mundo Mimitos"}</h4>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm font-semibold">{config?.storeTagline || "Ropa suave y amorosa para bebés y niños"}</p>
-            </div>
-          </div>
-
+        <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-6 text-center md:text-left items-center">
           {/* Contacto */}
           <div className="flex flex-col items-center md:items-start gap-3">
             <h4 className="font-display font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
