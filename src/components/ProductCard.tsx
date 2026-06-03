@@ -5,6 +5,7 @@ import { ShoppingBag, Eye } from "lucide-react";
 interface ProductCardProps {
   key?: string | number;
   product: Product;
+  ageLabel?: string;
   currencySymbol: string;
   brandColorValue: string;
   onOpenDetails: (product: Product) => void;
@@ -15,6 +16,7 @@ interface ProductCardProps {
 
 export function ProductCard({
   product,
+  ageLabel,
   currencySymbol,
   brandColorValue,
   onOpenDetails,
@@ -126,8 +128,8 @@ export function ProductCard({
       <div className="p-5 flex flex-col flex-1">
         {/* Category & Age badges */}
         <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
-          <span className={`text-[10px] uppercase tracking-wider font-semibold border ${ageBadgeStyles[product.ageTag]} px-2 py-0.5 rounded-full`}>
-            {AGE_TAG_LABELS[product.ageTag]}
+          <span className={`text-[10px] uppercase tracking-wider font-semibold border ${ageBadgeStyles[product.ageTag] || "bg-slate-50 text-slate-600 border-slate-100"} px-2 py-0.5 rounded-full`}>
+            {ageLabel || AGE_TAG_LABELS[product.ageTag] || product.ageTag}
           </span>
           <span className="bg-slate-50 text-slate-500 border border-slate-100 text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full">
             {product.category}

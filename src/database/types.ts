@@ -1,3 +1,16 @@
+export interface CategoryDef {
+  value: string;
+  label: string;
+  desc: string;
+  emoji: string;
+}
+
+export interface AgeGroupDef {
+  key: string;
+  label: string;
+  sizes: string[];
+}
+
 export interface StoreConfig {
   storeName: string;
   storeTagline: string;
@@ -8,6 +21,8 @@ export interface StoreConfig {
   brandColor: string;
   logoUrl: string;
   currencySymbol: string;
+  categories?: CategoryDef[];
+  ageGroups?: AgeGroupDef[];
 }
 
 export interface Product {

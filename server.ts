@@ -18,7 +18,19 @@ const DEFAULT_DATA = {
     bannerImage: "/src/assets/images/shop_hero_1780268503557.webp",
     brandColor: "rose",
     logoUrl: "/src/assets/images/mundo_mimitos_logo_nuevo.webp",
-    currencySymbol: "$"
+    currencySymbol: "$",
+    categories: [
+      { value: "Babys", label: "Babys", desc: "0 a 24 meses", emoji: "🍼" },
+      { value: "Niños", label: "Niños", desc: "Varones", emoji: "🧸" },
+      { value: "Niñas", label: "Niñas", desc: "Nenas", emoji: "👗" },
+      { value: "Kids", label: "Kids", desc: "6 a 12 años", emoji: "🎒" },
+      { value: "Teens", label: "Teens", desc: "Más de 12 años", emoji: "🛹" }
+    ],
+    ageGroups: [
+      { key: "baby", label: "Bebés (0-2 años)", sizes: ["RN", "1M", "3M", "6M", "12M", "18M"] },
+      { key: "toddler", label: "Niños Pequeños (2-5 años)", sizes: ["18M", "2A", "3A", "4A", "5A"] },
+      { key: "kid", label: "Chicos (6+ años)", sizes: ["4A", "6A", "8A", "10A", "12A"] }
+    ]
   },
   products: [
     {

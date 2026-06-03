@@ -1,3 +1,16 @@
+export interface CategoryDef {
+  value: string;
+  label: string;
+  desc: string;
+  emoji: string;
+}
+
+export interface AgeGroupDef {
+  key: string;
+  label: string;
+  sizes: string[];
+}
+
 export interface StoreConfig {
   storeName: string;
   storeTagline: string;
@@ -8,13 +21,15 @@ export interface StoreConfig {
   brandColor: string; // 'rose' | 'babyBlue' | 'emerald' | 'amber' | 'lavender' | 'slate'
   logoUrl: string;
   currencySymbol: string;
+  categories?: CategoryDef[];
+  ageGroups?: AgeGroupDef[];
 }
 
 export interface Product {
   id: string;
   name: string;
   category: string;
-  ageTag: 'baby' | 'toddler' | 'kid'; // baby=0-2, toddler=2-5, kid=6+
+  ageTag: string; // referencia a AgeGroupDef.key
   price: number;
   sizes: string[];
   description: string;
@@ -31,7 +46,22 @@ export interface CartItem {
   quantity: number;
 }
 
-export type AgeCategory = 'all' | 'baby' | 'toddler' | 'kid';
+export type AgeCategory = string; // 'all' o el key de un AgeGroupDef
+
+// Valores por defecto (se usan como respaldo si la configuración aún no los tiene)
+export const DEFAULT_CATEGORIES: CategoryDef[] = [
+  { value: "Babys", label: "Babys", desc: "0 a 24 meses", emoji: "🍼" },
+  { value: "Niños", label: "Niños", desc: "Varones", emoji: "🧸" },
+  { value: "Niñas", label: "Niñas", desc: "Nenas", emoji: "👗" },
+  { value: "Kids", label: "Kids", desc: "6 a 12 años", emoji: "🎒" },
+  { value: "Teens", label: "Teens", desc: "Más de 12 años", emoji: "🛹" }
+];
+
+export const DEFAULT_AGE_GROUPS: AgeGroupDef[] = [
+  { key: "baby", label: "Bebés (0-2 años)", sizes: ["RN", "1M", "3M", "6M", "12M", "18M"] },
+  { key: "toddler", label: "Niños Pequeños (2-5 años)", sizes: ["18M", "2A", "3A", "4A", "5A"] },
+  { key: "kid", label: "Chicos (6+ años)", sizes: ["4A", "6A", "8A", "10A", "12A"] }
+];
 
 export const BRAND_COLORS = [
   { name: 'Vibrant Pink / Coral', value: 'rose', bg: 'bg-pink-50', text: 'text-pink-600', border: 'border-pink-300', primary: 'bg-pink-500', hover: 'hover:bg-pink-600', accent: 'text-pink-500', focus: 'focus:ring-pink-500' },

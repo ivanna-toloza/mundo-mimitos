@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { StoreConfig, Product, CartItem, AgeCategory, BRAND_COLORS, CATEGORIES, AGE_TAG_LABELS, STANDARD_SIZES } from "./types";
+import { StoreConfig, Product, CartItem, AgeCategory, CategoryDef, AgeGroupDef, BRAND_COLORS, DEFAULT_CATEGORIES, DEFAULT_AGE_GROUPS } from "./types";
 import { ProductCard } from "./components/ProductCard";
 import { ProductModal } from "./components/ProductModal";
 import { CartDrawer } from "./components/CartDrawer";
@@ -30,6 +30,11 @@ export default function App() {
   const [isEditGeneralOpen, setIsEditGeneralOpen] = useState(false);
   const [productModalForm, setProductModalForm] = useState<Partial<Product> | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
+
+  // Editor de categorías y grupos de edad
+  const [isEditTaxonomyOpen, setIsEditTaxonomyOpen] = useState(false);
+  const [catDraft, setCatDraft] = useState<CategoryDef[]>([]);
+  const [ageDraft, setAgeDraft] = useState<AgeGroupDef[]>([]);
 
   const [storeNameState, setStoreNameState] = useState("");
   const [storeTaglineState, setStoreTaglineState] = useState("");
@@ -192,13 +197,17 @@ export default function App() {
 
   // --- FRONTEND HANDLERS FOR INLINE EDIT ACTIONS ---
   const handleStartAddProduct = () => {
+    const cats = config?.categories?.length ? config.categories : DEFAULT_CATEGORIES;
+    const ages = config?.ageGroups?.length ? config.ageGroups : DEFAULT_AGE_GROUPS;
+    const firstCat = cats[0];
+    const firstAge = ages[0];
     setProductModalForm({
       id: "p_" + Date.now(),
       name: "",
-      category: "Babys",
-      ageTag: "baby",
+      category: firstCat?.value || "Babys",
+      ageTag: firstAge?.key || "baby",
       price: 0,
-      sizes: ["RN", "1M", "3M", "6M"],
+      sizes: firstAge?.sizes ? [...firstAge.sizes] : [],
       description: "",
       image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&q=80&w=800",
       images: [],
@@ -312,6 +321,64 @@ export default function App() {
     }
   };
 
+  // --- EDITOR DE CATEGORÍAS Y EDADES ---
+  const handleOpenTaxonomy = () => {
+    const cats = config?.categories?.length ? config.categories : DEFAULT_CATEGORIES;
+    const ages = config?.ageGroups?.length ? config.ageGroups : DEFAULT_AGE_GROUPS;
+    setCatDraft(cats.map(c => ({ ...c })));
+    setAgeDraft(ages.map(a => ({ ...a, sizes: [...a.sizes] })));
+    setIsEditTaxonomyOpen(true);
+  };
+
+  const updateCat = (i: number, patch: Partial<CategoryDef>) =>
+    setCatDraft(d => d.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+  const removeCat = (i: number) => setCatDraft(d => d.filter((_, idx) => idx !== i));
+  const addCat = () => setCatDraft(d => [...d, { value: "", label: "", desc: "", emoji: "👕" }]);
+
+  const updateAge = (i: number, patch: Partial<AgeGroupDef>) =>
+    setAgeDraft(d => d.map((a, idx) => (idx === i ? { ...a, ...patch } : a)));
+  const removeAge = (i: number) => setAgeDraft(d => d.filter((_, idx) => idx !== i));
+  const addAge = () => setAgeDraft(d => [...d, { key: "age_" + Date.now(), label: "", sizes: [] }]);
+
+  const handleSaveTaxonomy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Mantiene el "value"/"key" original (para no romper prendas existentes);
+    // los nuevos derivan su identificador del nombre.
+    const cleanCats = catDraft
+      .filter(c => c.label.trim())
+      .map(c => ({
+        value: c.value && c.value.trim() ? c.value : c.label.trim(),
+        label: c.label.trim(),
+        desc: c.desc.trim(),
+        emoji: c.emoji.trim() || "🏷️"
+      }));
+    const cleanAges = ageDraft
+      .filter(a => a.label.trim())
+      .map(a => ({
+        key: a.key && a.key.trim() ? a.key : "age_" + Date.now(),
+        label: a.label.trim(),
+        sizes: a.sizes.map(s => s.trim()).filter(Boolean)
+      }));
+    if (cleanCats.length === 0) {
+      showNotification("error", "Tiene que haber al menos una categoría.");
+      return;
+    }
+    if (cleanAges.length === 0) {
+      showNotification("error", "Tiene que haber al menos un grupo de edad.");
+      return;
+    }
+    setSaveLoading(true);
+    try {
+      await handleSaveConfig({ ...(config as StoreConfig), categories: cleanCats, ageGroups: cleanAges });
+      setIsEditTaxonomyOpen(false);
+      showNotification("success", "¡Categorías y edades guardadas!");
+    } catch (err: any) {
+      showNotification("error", "Error al guardar: " + err.message);
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
   const handleGenerateAiDescription = async () => {
     if (!productModalForm || !productModalForm.name || !productModalForm.category) {
       showNotification("error", "Completa primero el nombre y categoría de la prenda.");
@@ -347,6 +414,7 @@ export default function App() {
     setSaveLoading(true);
     try {
       const updatedConfig: StoreConfig = {
+        ...(config as StoreConfig),
         storeName: storeNameState,
         storeTagline: storeTaglineState,
         whatsappNumber: whatsappNumberState,
@@ -489,6 +557,11 @@ export default function App() {
   // Find style elements
   const currentBrand = BRAND_COLORS.find(c => c.value === config.brandColor) || BRAND_COLORS[0];
   const totalCartQty = cart.reduce((acc, item) => acc + item.quantity, 0);
+
+  // Categorías y grupos de edad (configurables por el admin, con respaldo)
+  const categories = config.categories?.length ? config.categories : DEFAULT_CATEGORIES;
+  const ageGroups = config.ageGroups?.length ? config.ageGroups : DEFAULT_AGE_GROUPS;
+  const ageLabelFor = (key: string) => ageGroups.find(a => a.key === key)?.label || key;
 
   // Filter Catalog Products
   const filteredProducts = products.filter(p => {
@@ -652,6 +725,12 @@ export default function App() {
                   ⚙️ Configuración Global
                 </button>
                 <button
+                  onClick={handleOpenTaxonomy}
+                  className="bg-violet-500 hover:bg-violet-600 px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase text-white transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-xs"
+                >
+                  🏷️ Categorías y Edades
+                </button>
+                <button
                   onClick={handleStartAddProduct}
                   className="bg-emerald-500 hover:bg-emerald-600 px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase text-white transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-xs"
                 >
@@ -748,11 +827,7 @@ export default function App() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
                 {[
                   { value: "Todo el Catálogo", label: "Todo el Catálogo", desc: "Ver todo", emoji: "👚" },
-                  { value: "Babys", label: "Babys", desc: "0 a 24 meses", emoji: "🍼" },
-                  { value: "Niños", label: "Niños", desc: "Varones", emoji: "🧸" },
-                  { value: "Niñas", label: "Niñas", desc: "Nenas", emoji: "👗" },
-                  { value: "Kids", label: "Kids", desc: "6 a 12 años", emoji: "🎒" },
-                  { value: "Teens", label: "Teens", desc: "Más de 12 años", emoji: "🛹" }
+                  ...categories
                 ].map(tab => {
                   const isSelected = activeCategory === tab.value;
                   const displayEmoji = tab.emoji;
@@ -797,6 +872,7 @@ export default function App() {
                     <ProductCard
                       key={p.id}
                       product={p}
+                      ageLabel={ageLabelFor(p.ageTag)}
                       currencySymbol={config.currencySymbol}
                       brandColorValue={config.brandColor}
                       onOpenDetails={setSelectedProduct}
@@ -848,6 +924,7 @@ export default function App() {
                   <ProductCard
                     key={product.id}
                     product={product}
+                    ageLabel={ageLabelFor(product.ageTag)}
                     currencySymbol={config.currencySymbol}
                     brandColorValue={config.brandColor}
                     onOpenDetails={setSelectedProduct}
@@ -1144,6 +1221,122 @@ export default function App() {
         </div>
       )}
 
+      {/* 5a-bis. Categorías y Edades Modal */}
+      {isEditTaxonomyOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl p-6 md:p-8 shadow-2xl relative border-4 border-dashed border-violet-200 animate-scale-up max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setIsEditTaxonomyOpen(false)}
+              className="absolute top-5 right-5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 p-2 rounded-full transition-all cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="font-display font-black text-xl md:text-2xl text-slate-800 mb-6 flex items-center gap-2">
+              🏷️ Categorías y Edades
+            </h3>
+
+            <form onSubmit={handleSaveTaxonomy} className="space-y-8">
+              {/* Categorías de ropa */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-display font-black text-sm text-slate-800">👕 Categorías de ropa</h4>
+                  <button
+                    type="button"
+                    onClick={addCat}
+                    className="text-[11px] font-black text-violet-600 hover:text-violet-800 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Agregar
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 font-semibold">Son los botones de filtro que ve tu cliente (ej: Babys, Niñas...).</p>
+                {catDraft.map((c, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-xl p-2">
+                    <input
+                      value={c.emoji}
+                      onChange={e => updateCat(i, { emoji: e.target.value })}
+                      className="w-10 text-center bg-white border border-slate-150 rounded-lg px-1 py-2 text-base focus:outline-hidden"
+                      placeholder="🍼"
+                      maxLength={2}
+                    />
+                    <input
+                      value={c.label}
+                      onChange={e => updateCat(i, { label: e.target.value })}
+                      className="flex-1 min-w-0 bg-white border border-slate-150 rounded-lg px-2 py-2 text-xs font-bold text-slate-700 focus:outline-hidden"
+                      placeholder="Nombre"
+                    />
+                    <input
+                      value={c.desc}
+                      onChange={e => updateCat(i, { desc: e.target.value })}
+                      className="flex-1 min-w-0 bg-white border border-slate-150 rounded-lg px-2 py-2 text-xs text-slate-500 focus:outline-hidden"
+                      placeholder="Descripción corta"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeCat(i)}
+                      className="text-rose-500 hover:text-rose-700 shrink-0 p-1 cursor-pointer"
+                      title="Quitar categoría"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Grupos de edad */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-display font-black text-sm text-slate-800">👶 Grupos de edad</h4>
+                  <button
+                    type="button"
+                    onClick={addAge}
+                    className="text-[11px] font-black text-violet-600 hover:text-violet-800 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Agregar
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 font-semibold">Cada prenda pertenece a un grupo. Definí su nombre y los talles disponibles.</p>
+                {ageDraft.map((a, i) => (
+                  <div key={i} className="bg-slate-50 rounded-xl p-2 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={a.label}
+                        onChange={e => updateAge(i, { label: e.target.value })}
+                        className="flex-1 min-w-0 bg-white border border-slate-150 rounded-lg px-2 py-2 text-xs font-bold text-slate-700 focus:outline-hidden"
+                        placeholder="Nombre (ej: Bebés 0-2 años)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeAge(i)}
+                        className="text-rose-500 hover:text-rose-700 shrink-0 p-1 cursor-pointer"
+                        title="Quitar grupo de edad"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <input
+                      value={a.sizes.join(", ")}
+                      onChange={e => updateAge(i, { sizes: e.target.value.split(",").map(s => s.trim()) })}
+                      className="w-full bg-white border border-slate-150 rounded-lg px-2 py-2 text-[11px] text-slate-600 focus:outline-hidden"
+                      placeholder="Talles separados por coma: RN, 1M, 3M, 6M"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="submit"
+                disabled={saveLoading}
+                className="w-full py-3 rounded-2xl text-xs font-black text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer bg-violet-500 hover:bg-violet-600"
+              >
+                <Save className="w-4 h-4" />
+                {saveLoading ? "Guardando..." : "Guardar Categorías y Edades"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* 5b. Add/Edit Product Modal */}
       {productModalForm !== null && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
@@ -1182,12 +1375,12 @@ export default function App() {
                         Categoría
                       </label>
                       <select
-                        value={productModalForm.category || "Babys"}
+                        value={productModalForm.category || categories[0]?.value || ""}
                         onChange={e => setProductModalForm({ ...productModalForm, category: e.target.value })}
                         className="w-full bg-slate-50 border border-slate-150 focus:border-slate-300 rounded-xl px-2 py-2.5 text-xs font-bold text-slate-700 focus:outline-hidden cursor-pointer"
                       >
-                        {CATEGORIES.slice(1).map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
+                        {categories.map(cat => (
+                          <option key={cat.value} value={cat.value}>{cat.label}</option>
                         ))}
                       </select>
                     </div>
@@ -1197,20 +1390,21 @@ export default function App() {
                         Rango de Edad
                       </label>
                       <select
-                        value={productModalForm.ageTag || "baby"}
+                        value={productModalForm.ageTag || ageGroups[0]?.key || ""}
                         onChange={e => {
-                          const val = e.target.value as any;
+                          const val = e.target.value;
+                          const grp = ageGroups.find(a => a.key === val);
                           setProductModalForm({
                             ...productModalForm,
                             ageTag: val,
-                            sizes: STANDARD_SIZES[val] || []
+                            sizes: grp ? [...grp.sizes] : []
                           });
                         }}
                         className="w-full bg-slate-50 border border-slate-150 focus:border-slate-300 rounded-xl px-2 py-2.5 text-xs font-bold text-slate-700 focus:outline-hidden cursor-pointer"
                       >
-                        <option value="baby">Bebés (0-2 años)</option>
-                        <option value="toddler">Niños Chicos (2-5 años)</option>
-                        <option value="kid">Niños Grandes (6+ años)</option>
+                        {ageGroups.map(a => (
+                          <option key={a.key} value={a.key}>{a.label}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -1344,7 +1538,7 @@ export default function App() {
                       Talles Disponibles
                     </span>
                     <div className="flex flex-wrap gap-1.5">
-                      {STANDARD_SIZES[productModalForm.ageTag as 'baby' | 'toddler' | 'kid']?.map(size => {
+                      {(ageGroups.find(a => a.key === productModalForm.ageTag)?.sizes || []).map(size => {
                         const isSelected = productModalForm.sizes?.includes(size);
                         return (
                           <button

@@ -11,7 +11,19 @@ const DEFAULT_DATA = {
     bannerImage: "/src/assets/images/shop_hero_1780268503557.webp",
     brandColor: "rose",
     logoUrl: "/src/assets/images/mundo_mimitos_logo_nuevo.webp",
-    currencySymbol: "$"
+    currencySymbol: "$",
+    categories: [
+      { value: "Babys", label: "Babys", desc: "0 a 24 meses", emoji: "🍼" },
+      { value: "Niños", label: "Niños", desc: "Varones", emoji: "🧸" },
+      { value: "Niñas", label: "Niñas", desc: "Nenas", emoji: "👗" },
+      { value: "Kids", label: "Kids", desc: "6 a 12 años", emoji: "🎒" },
+      { value: "Teens", label: "Teens", desc: "Más de 12 años", emoji: "🛹" }
+    ],
+    ageGroups: [
+      { key: "baby", label: "Bebés (0-2 años)", sizes: ["RN", "1M", "3M", "6M", "12M", "18M"] },
+      { key: "toddler", label: "Niños Pequeños (2-5 años)", sizes: ["18M", "2A", "3A", "4A", "5A"] },
+      { key: "kid", label: "Chicos (6+ años)", sizes: ["4A", "6A", "8A", "10A", "12A"] }
+    ]
   },
   products: [
     {
@@ -159,6 +171,25 @@ async function migrateLocalImagesToWebp() {
   }
 }
 
+// Inserta las categorías y grupos de edad por defecto si todavía no existen
+// en la configuración (para bases que se crearon antes de esta función).
+async function ensureDefaultTaxonomies() {
+  const res = await query("SELECT key FROM store_config WHERE key IN ('categories', 'ageGroups')");
+  const existing = new Set(res.rows.map(r => r.key));
+  if (!existing.has('categories')) {
+    await query(
+      'INSERT INTO store_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING',
+      ['categories', JSON.stringify(DEFAULT_DATA.config.categories)]
+    );
+  }
+  if (!existing.has('ageGroups')) {
+    await query(
+      'INSERT INTO store_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING',
+      ['ageGroups', JSON.stringify(DEFAULT_DATA.config.ageGroups)]
+    );
+  }
+}
+
 export async function initializeDatabase() {
   console.log('Initializing database tables...');
   
@@ -258,6 +289,10 @@ export async function initializeDatabase() {
     // Self-heal old sample image references to the optimized .webp versions
     await migrateLocalImagesToWebp();
     console.log('✓ Image paths migrated to webp (where applicable)');
+
+    // Agrega categorías y grupos de edad por defecto si la config no los tiene
+    await ensureDefaultTaxonomies();
+    console.log('✓ Categorías y edades verificadas');
 
     console.log('✓ Database initialization complete');
   } catch (error) {
