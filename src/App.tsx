@@ -890,14 +890,6 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-6 text-center md:text-left">
           {/* Marca */}
           <div className="flex flex-col md:flex-row items-center md:items-start gap-4">
-            <img
-              src={config?.logoUrl || "/src/assets/images/mundo_mimitos_logo_nuevo.webp"}
-              alt="Logo Mundo Mimitos"
-              referrerPolicy="no-referrer"
-              loading="lazy"
-              decoding="async"
-              className="w-20 h-20 object-cover rounded-full border border-pink-100 shadow-sm p-0 bg-white shrink-0"
-            />
             <div>
               <h4 className="font-display font-extrabold text-slate-800 text-base">{config?.storeName || "Mundo Mimitos"}</h4>
               <p className="text-xs text-slate-400 mt-1 max-w-sm font-semibold">{config?.storeTagline || "Ropa suave y amorosa para bebés y niños"}</p>
