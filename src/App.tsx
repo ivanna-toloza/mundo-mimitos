@@ -653,7 +653,7 @@ export default function App() {
             <div className="hidden md:flex max-w-sm w-full relative">
               <input
                 type="text"
-                placeholder="Buscar mamelucos, vestidos, conjuntos..."
+                placeholder="Buscar"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-5-0 hover:bg-slate-100/75 border border-slate-100 focus:border-slate-300 focus:bg-white rounded-2xl pl-10 pr-4 py-2.5 text-xs focus:outline-hidden transition-all duration-200"
