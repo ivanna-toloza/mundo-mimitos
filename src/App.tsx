@@ -82,7 +82,7 @@ export default function App() {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch("/api/store");
+      const res = await fetch("/api/store", { cache: "no-store" });
       if (!res.ok) throw new Error("Error de conexión al cargar el catálogo.");
       const data = await res.json();
       setConfig(data.config);

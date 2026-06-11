@@ -328,6 +328,8 @@ async function startServer() {
   // Get Store details (config + products)
   app.get("/api/store", async (req, res) => {
     try {
+      // Nunca cachear el catálogo: tras guardar, la recarga debe traer datos frescos
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate");
       const data = await readStoreData();
       res.json(data);
     } catch (e: any) {
