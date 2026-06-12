@@ -244,9 +244,14 @@ export async function initializeDatabase() {
     // Check if config exists
     const configResult = await query('SELECT COUNT(*) FROM store_config');
     const configCount = parseInt(configResult.rows[0].count, 10);
+    // Una tienda es "nueva de cero" sólo si todavía no tiene configuración.
+    // Usamos esto para NO re-sembrar productos de ejemplo en una tienda que ya
+    // existe (de lo contrario, si el dueño borra todo, los defaults volverían
+    // a aparecer en cada reinicio del servidor).
+    const isFreshStore = configCount === 0;
 
     // If no config, insert defaults
-    if (configCount === 0) {
+    if (isFreshStore) {
       console.log('Inserting default configuration...');
       for (const [key, value] of Object.entries(DEFAULT_DATA.config)) {
         await query(
@@ -261,8 +266,8 @@ export async function initializeDatabase() {
     const productsResult = await query('SELECT COUNT(*) FROM products');
     const productsCount = parseInt(productsResult.rows[0].count, 10);
 
-    // If no products, insert defaults
-    if (productsCount === 0) {
+    // Sólo sembramos productos de ejemplo en una tienda nueva de cero.
+    if (isFreshStore && productsCount === 0) {
       console.log('Inserting default products...');
       for (const product of DEFAULT_DATA.products) {
         await query(
